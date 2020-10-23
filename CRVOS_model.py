@@ -127,3 +127,39 @@ class AddCoords(nn.Module):
         return ret
 
 
+class REFINE(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv_s16 = ConvRelu(2048, 256, 1, 1, 0)
+        self.blend_s16 = ConvRelu(261, 128, 3, 1, 1)
+        self.conv_s8 = ConvRelu(512, 128, 1, 1, 0)
+        self.blend_s8 = ConvRelu(130, 128, 3, 1, 1)
+        self.conv_s4 = ConvRelu(256, 128, 1, 1, 0)
+        self.blend_s4 = ConvRelu(130, 128, 3, 1, 1)
+        self.deconv1_1 = nn.ConvTranspose2d(128, 2, 4, 2, 1, bias=True)
+        self.deconv1_2 = nn.ConvTranspose2d(2, 2, 4, 2, 1, bias=True)
+        self.deconv2 = nn.ConvTranspose2d(128, 2, 4, 2, 1, bias=True)
+        self.deconv3 = nn.ConvTranspose2d(128, 2, 3, 1, 1, bias=True)
+        self.predictor = nn.ConvTranspose2d(6, 2, 6, 4, 1, bias=True)
+        self.coord = AddCoords(with_r=True)
+
+    def forward(self, feats, state):
+        prev_seg = state['prev_seg']
+        clue = self.coord(prev_seg)
+        u = torch.cat([self.conv_s16(feats['s16']), clue], dim=-3)
+        u = self.blend_s16(u)
+        out_16 = self.deconv1_1(u)
+
+        u = torch.cat([self.conv_s8(feats['s8']), out_16], dim=-3)
+        u = self.blend_s8(u)
+        out_8 = self.deconv2(u)
+
+        u = torch.cat([self.conv_s4(feats['s4']), out_8], dim=-3)
+        u = self.blend_s4(u)
+        out_4 = self.deconv3(u)
+
+        segscore = self.predictor(torch.cat([self.deconv1_2(out_16), out_8, out_4], dim=1))
+
+        return segscore
+
+
