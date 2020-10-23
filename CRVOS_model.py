@@ -88,3 +88,42 @@ class Conv(nn.Sequential):
                     nn.init.constant_(m.bias, 0)
 
 
+class AddCoords(nn.Module):
+    def __init__(self, with_r=False):
+        super(AddCoords, self).__init__()
+        self.with_r = with_r
+
+    def forward(self, input_tensor):
+        batch_size_tensor = input_tensor.size(0)
+        x_dim = input_tensor.size(3)
+        y_dim = input_tensor.size(2)
+
+        xx_ones = torch.ones([1, x_dim], dtype=torch.int32)
+        xx_range = torch.arange(y_dim, dtype=torch.int32).unsqueeze(1)
+        xx_channel = torch.matmul(xx_range, xx_ones).unsqueeze(0)
+
+        yy_ones = torch.ones([y_dim, 1], dtype=torch.int32)
+        yy_range = torch.arange(x_dim, dtype=torch.int32).unsqueeze(0)
+        yy_channel = torch.matmul(yy_ones, yy_range).unsqueeze(0)
+
+        xx_channel = xx_channel.float() / (y_dim - 1)
+        yy_channel = yy_channel.float() / (x_dim - 1)
+
+        xx_channel = xx_channel * 2 - 1
+        yy_channel = yy_channel * 2 - 1
+
+        xx_channel = xx_channel.repeat(batch_size_tensor, 1, 1, 1)
+        yy_channel = yy_channel.repeat(batch_size_tensor, 1, 1, 1)
+
+        xx_channel = xx_channel.cuda()
+        yy_channel = yy_channel.cuda()
+
+        ret = torch.cat([input_tensor, xx_channel, yy_channel], dim=1)
+
+        if self.with_r:
+            rr = torch.sqrt(torch.pow(xx_channel, 2) + torch.pow(yy_channel, 2))
+            ret = torch.cat([ret, rr], dim=1)
+
+        return ret
+
+
