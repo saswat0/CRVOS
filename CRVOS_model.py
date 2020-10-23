@@ -163,3 +163,27 @@ class REFINE(nn.Module):
         return segscore
 
 
+class VOS(nn.Module):
+    def __init__(self, backbone_cfg):
+        super().__init__()
+        self.backbone = getattr(models.backbones, backbone_cfg[0])(*backbone_cfg[1])
+        self.refine = REFINE()
+
+    def get_init_state(self, img, given_seg):
+        state = {}
+        state['prev_seg'] = given_seg
+        return state
+
+    def update(self, feats, pred_seg, state):
+        state['prev_seg'] = pred_seg
+        return state
+
+    def extract_feats(self, img):
+        feats = self.backbone.get_features(img)
+        return feats
+
+    def forward(self, feats, state):
+        segscore = self.refine(feats, state)
+        return state, segscore
+
+
