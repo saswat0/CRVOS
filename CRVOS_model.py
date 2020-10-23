@@ -25,3 +25,30 @@ def softmax_aggregate(predicted_seg, object_ids):
     return final_seg, {obj_idx: aggregated[:, 2 * (idx + 1):2 * (idx + 2), :, :] for idx, obj_idx in
                        enumerate(object_ids)}
 
+
+def get_required_padding(height, width, div):
+    height_pad = (div - height % div) % div
+    width_pad = (div - width % div) % div
+    padding = [(width_pad + 1) // 2, width_pad // 2, (height_pad + 1) // 2, height_pad // 2]
+    return padding
+
+
+def apply_padding(x, y, padding):
+    B, L, C, H, W = x.size()
+    x = x.view(B * L, C, H, W)
+    x = F.pad(x, padding, mode='reflect')
+    _, _, height, width = x.size()
+    x = x.view(B, L, C, height, width)
+    y = [F.pad(label.float(), padding, mode='reflect').long() if label is not None else None for label in y]
+    return x, y
+
+
+def unpad(tensor, padding):
+    if isinstance(tensor, (dict, OrderedDict)):
+        return {key: unpad(val, padding) for key, val in tensor.items()}
+    elif isinstance(tensor, (list, tuple)):
+        return [unpad(elem, padding) for elem in tensor]
+    else:
+        _, _, _, height, width = tensor.size()
+        tensor = tensor[:, :, :, padding[2]:height - padding[3], padding[0]:width - padding[1]]
+        return tensor
