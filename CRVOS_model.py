@@ -77,3 +77,14 @@ class ConvRelu(nn.Sequential):
                     nn.init.constant_(m.bias, 0)
 
 
+class Conv(nn.Sequential):
+    def __init__(self, *conv_args):
+        super().__init__()
+        self.add_module('conv', nn.Conv2d(*conv_args))
+        for m in self.children():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+
