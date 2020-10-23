@@ -187,3 +187,74 @@ class VOS(nn.Module):
         return state, segscore
 
 
+class CRVOS(nn.Module):
+    def __init__(self, backbone):
+        super().__init__()
+        self.vos = VOS(backbone)
+
+    def forward(self, x, given_labels=None, state=None):
+        batchsize, nframes, nchannels, prepad_height, prepad_width = x.size()
+        required_padding = get_required_padding(prepad_height, prepad_width, 16)
+        if tuple(required_padding) != (0, 0, 0, 0):
+            x, given_labels = apply_padding(x, given_labels, required_padding)
+        _, _, _, height, width = x.size()
+
+        video_frames = [elem.view(batchsize, nchannels, height, width) for elem in x.split(1, dim=1)]
+
+        if state is None:
+            init_label = given_labels[0]
+            object_ids = init_label.unique().tolist()
+            if 0 in object_ids:
+                object_ids.remove(0)
+            state = {}
+
+            for obj_idx in object_ids:
+                given_seg = F.avg_pool2d(torch.cat([init_label != obj_idx, init_label == obj_idx], dim=-3).float(), 16)
+                state[obj_idx] = self.vos.get_init_state(video_frames[0], given_seg)
+
+        else:
+            object_ids = list(state.keys())
+            init_label = given_labels[0] if isinstance(given_labels, (tuple, list)) else given_labels
+
+            if init_label is not None:
+                new_object_ids = init_label.unique().tolist()
+                if 0 in object_ids:
+                    object_ids.remove(0)
+                for obj_idx in new_object_ids:
+                    given_seg = F.avg_pool2d(torch.cat([init_label != obj_idx, init_label == obj_idx], dim=-3).float(),
+                                             16)
+                    if state.get(obj_idx) is None:
+                        state[obj_idx] = self.vos.get_init_state(video_frames[0], given_seg)
+                object_ids = object_ids + new_object_ids
+        object_visibility = {obj_idx: 0 for obj_idx in object_ids}
+
+        seg_lst = []
+        if given_labels[0] is None:
+            frames_to_process = range(0, nframes)
+        else:
+            seg_lst.append(given_labels[0])
+            frames_to_process = range(1, nframes)
+
+        for i in frames_to_process:
+            feats = self.vos.extract_feats(video_frames[i])
+            segscore = {}
+            for k in object_ids:
+                state[k], segscore[k] = self.vos(feats, state[k])
+
+            predicted_seg = {k: F.softmax(segscore[k], dim=-3) for k in object_ids}
+            output_seg, aggregated_seg = softmax_aggregate(predicted_seg, object_ids)
+            update_seg = {n: F.avg_pool2d(aggregated_seg[n], 16) for n in object_ids}
+
+            for k in object_ids:
+                state[k] = self.vos.update(feats, update_seg[k], state[k])
+
+            if isinstance(given_labels, (list, tuple)) and given_labels[i] is not None and i == 0:
+                seg_lst.append(given_labels[i])
+            else:
+                seg_lst.append(output_seg)
+
+        output = {}
+        output['object_visibility'] = object_visibility
+        output['segs'] = torch.stack(seg_lst, dim=1)
+        output['segs'] = unpad(output['segs'], required_padding)
+        return output, state
