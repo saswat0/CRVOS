@@ -52,3 +52,28 @@ def unpad(tensor, padding):
         _, _, _, height, width = tensor.size()
         tensor = tensor[:, :, :, padding[2]:height - padding[3], padding[0]:width - padding[1]]
         return tensor
+
+class LinearRelu(nn.Sequential):
+    def __init__(self, *linear_args):
+        super().__init__()
+        self.add_module('linear', nn.Linear(*linear_args))
+        self.add_module('naf', nn.ReLU(inplace=True))
+        for m in self.children():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+
+class ConvRelu(nn.Sequential):
+    def __init__(self, *conv_args):
+        super().__init__()
+        self.add_module('conv', nn.Conv2d(*conv_args))
+        self.add_module('naf', nn.ReLU(inplace=True))
+        for m in self.children():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+
+
