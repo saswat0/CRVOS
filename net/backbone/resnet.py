@@ -10,6 +10,12 @@ model_urls = {
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
 }
 
+config = {
+    'davis_path': "~/DB/DAVIS",
+    'output_path': "outputs",
+    'nn_weights_path': "pytorch_weights"
+}
+
 def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
