@@ -2,6 +2,14 @@ import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 
+__all__ = ['ResNet', 'resnet50s16', 'resnet101s16']
+
+
+model_urls = {
+    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+}
+
 def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
