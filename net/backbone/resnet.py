@@ -217,3 +217,9 @@ def resnet50s16(pretrained=False, finetune_layers=(), s16_feats=('layer4',),
     return model
 
 
+def resnet101s16(pretrained=False, finetune_layers=(), s16_feats=('layer4',),
+                 s8_feats=('layer2',), s4_feats=('layer1',), **kwargs):
+    model = ResNetS16(finetune_layers, s16_feats, s8_feats, s4_feats, Bottleneck, [3, 4, 23, 3], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['resnet101'], model_dir=config['nn_weights_path']))
+    return model
