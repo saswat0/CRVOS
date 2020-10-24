@@ -2,7 +2,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import models
+import net as models
 
 
 DEVICE = torch.device("cuda")
@@ -166,7 +166,7 @@ class REFINE(nn.Module):
 class VOS(nn.Module):
     def __init__(self, backbone_cfg):
         super().__init__()
-        self.backbone = getattr(models.backbones, backbone_cfg[0])(*backbone_cfg[1])
+        self.backbone = getattr(models.backbone, backbone_cfg[0])(*backbone_cfg[1])
         self.refine = REFINE()
 
     def get_init_state(self, img, given_seg):
