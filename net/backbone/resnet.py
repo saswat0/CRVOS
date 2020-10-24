@@ -153,3 +153,59 @@ class ResNet(nn.Module):
         return x
 
 
+class ResNetS16(ResNet):
+    def __init__(self, finetune_layers, s16_feats, s8_feats, s4_feats, block, layers, num_classes=1000):
+        super().__init__(block, layers, num_classes)
+        self.finetune_layers = finetune_layers
+        self.s16_feats = s16_feats
+        self.s8_feats = s8_feats
+        self.s4_feats = s4_feats
+
+        self.layer4[0].downsample[0].stride = (1, 1)
+        self.layer4[0].conv2.stride = (1, 1)
+        for layer in self.layer4[1:]:
+            layer.conv2.dilation = (2, 2)
+            layer.conv2.padding = (2, 2)
+
+        self.requires_grad = False
+        for param in self.parameters():
+            param.requires_grad = False
+        for module_name in finetune_layers:
+            getattr(self, module_name).train(True)
+            getattr(self, module_name).requires_grad = True
+            for param in getattr(self, module_name).parameters():
+                param.requires_grad = True
+
+    def get_return_values(self, feats):
+        return {'s16': torch.cat([feats[name] for name in self.s16_feats], dim=-1),
+                's8': torch.cat([feats[name] for name in self.s8_feats], dim=-1),
+                's4': torch.cat([feats[name] for name in self.s4_feats], dim=-1)}
+
+    def get_features(self, x):
+        feats = {}
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        feats['conv1'] = x
+        x = self.maxpool(x)
+        x = self.layer1(x)
+        feats['layer1'] = x
+        x = self.layer2(x)
+        feats['layer2'] = x
+        x = self.layer3(x)
+        feats['layer3'] = x
+        x = self.layer4(x)
+        feats['layer4'] = x
+        return self.get_return_values(feats)
+
+    def train(self, mode):
+        for name, module in self.named_children():
+            if name in self.finetune_layers:
+                module.train(mode)
+            else:
+                module.train(False)
+
+    def eval(self):
+        self.train(False)
+
+
