@@ -49,3 +49,44 @@ class ReadSaveImage(object):
         if not os.path.exists(path):
             os.makedirs(path)
 
+class ReadSaveDAVISChallengeLabels(ReadSaveImage):
+    def __init__(self, bpalette=DAVIS_PALETTE_4BIT, palette=None):
+        super(ReadSaveDAVISChallengeLabels, self).__init__()
+        self._palette = palette
+        self._bpalette = bpalette
+        self._width = 0
+        self._height = 0
+
+    @property
+    def palette(self):
+        return self._palette
+
+    def save(self, image, path):
+        self.check_path(path)
+
+        if self._palette is None:
+            palette = self._bpalette
+        else:
+            palette = self._palette
+
+        bitdepth = int(math.log(len(palette))/math.log(2))
+
+        height, width = image.shape
+        file = open(path, 'wb')
+        writer = png.Writer(width, height, palette=palette, bitdepth=bitdepth)
+        writer.write(file, image)
+
+    def read(self, path):
+        try:
+            reader = png.Reader(path)
+            width, height, data, meta = reader.read()
+            if self._palette is None:
+                self._palette = meta['palette']
+            image = numpy.vstack(data)
+            self._height, self._width = image.shape
+        except png.FormatError:
+            image = numpy.zeros((self._height, self._width))
+            self.save(image, path)
+
+        return image
+
