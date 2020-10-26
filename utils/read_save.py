@@ -90,3 +90,46 @@ class ReadSaveDAVISChallengeLabels(ReadSaveImage):
 
         return image
 
+class ImageSaveHelper(threading.Thread):
+    def __init__(self, queueSize=100000):
+        super(ImageSaveHelper, self).__init__()
+        self._alive = True
+        self._queue = queue.Queue(queueSize)
+        self.start()
+
+    @property
+    def alive(self):
+        return self._alive
+
+    @alive.setter
+    def alive(self, alive):
+        self._alive = alive
+
+    @property
+    def queue(self):
+        return self._queue
+
+    def kill(self):
+        self._alive = False
+
+    def enqueue(self, datatuple):
+        ret = True
+        try:
+            self._queue.put(datatuple, block=False)
+        except queue.Full:
+            print("ImageSaveHelper - enqueue full")
+            ret = False
+        return ret
+
+    def run(self):
+        while True:
+            while not self._queue.empty():
+                args, method = self._queue.get(block=False, timeout=2)
+                method.save(*args)
+
+                self._queue.task_done()
+
+            if not self._alive and self._queue.empty():
+                break
+
+            time.sleep(0.001)
