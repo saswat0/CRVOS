@@ -21,3 +21,21 @@ class VOSEvaluator(object):
         fnames = video_part['fnames']
         return images, given_segannos, segannos, fnames
 
+    def evaluate_video(self, model, seqname, video_parts, output_path, save, video_seq):
+        for video_part in video_parts:
+            images, given_segannos, segannos, fnames = self.read_video_part(video_part)
+
+            if video_seq == 0:
+                _, _ = model(images, given_segannos, None)
+
+            t0 = time.time()
+            tracker_out, _ = model(images, given_segannos, None)
+            t1 = time.time()
+
+            if save is True:
+                for idx in range(len(fnames)):
+                    fpath = os.path.join(output_path, seqname, fnames[idx])
+                    data = ((tracker_out['segs'][0, idx, 0, :, :].cpu().byte().numpy(), fpath), self._sdm)
+                    self._imsavehlp.enqueue(data)
+        return t1-t0, len(fnames)
+
