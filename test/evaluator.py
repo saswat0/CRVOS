@@ -39,3 +39,31 @@ class VOSEvaluator(object):
                     self._imsavehlp.enqueue(data)
         return t1-t0, len(fnames)
 
+    def evaluate(self, model, output_path):
+        model.to(self._device)
+        model.eval()
+        if not os.path.exists(os.path.dirname(output_path)):
+            os.makedirs(os.path.dirname(output_path))
+        with torch.no_grad():
+            tot_time, tot_frames, video_seq = 0.0, 0.0, 0
+            for seqname, video_parts in self._dataset.get_video_generator():
+                savepath = os.path.join(output_path, seqname)
+                if not os.path.exists(savepath):
+                    os.makedirs(savepath)
+                time_elapsed, frames = self.evaluate_video(model, seqname, video_parts, output_path, self._save,
+                                                           video_seq)
+                tot_time += time_elapsed
+                tot_frames += frames
+                video_seq += 1
+
+                if self._save is False:
+                    print(seqname, 'FPS:{}, frames:{}, time:{}'.format(frames / time_elapsed, frames, time_elapsed))
+                else:
+                    print(seqname, 'saved')
+
+            if self._save is False:
+                print('\nTotal FPS:{}\n\n'.format(tot_frames/tot_time))
+            else:
+                print('\nTotal seq saved\n\n')
+
+        self._imsavehlp.kill()
