@@ -115,3 +115,53 @@ class DAVIS17V2(torch.utils.data.Dataset):
         if self._start_frame == 'random':
             frame_idxidx = frame_ids.index(random.choice(viable_starting_frame_ids))
             return frame_ids[frame_idxidx: frame_idxidx + self._seqlen]
+
+    def _select_object_ids(self, labels):
+        possible_obj_ids = (labels[0].view(-1).bincount() > 25).nonzero().view(-1).tolist()
+        if 0 in possible_obj_ids:
+            possible_obj_ids.remove(0)
+        if 255 in possible_obj_ids:
+            possible_obj_ids.remove(255)
+
+        obj_ids = self._obj_selection(possible_obj_ids)
+        bg_ids = (labels.view(-1).bincount() > 0).nonzero().view(-1).tolist()
+        if 0 in bg_ids:
+            bg_ids.remove(0)
+        if 255 in bg_ids:
+            bg_ids.remove(255)
+        for idx in obj_ids:
+            bg_ids.remove(idx)
+        
+        for idx in bg_ids:
+            labels[labels == idx] = 0
+        for new_idx, old_idx in zip(range(1, len(obj_ids)+1), obj_ids):
+            labels[labels == old_idx] = new_idx
+        return labels
+
+    def __getitem__(self, idx):
+        seqname = self.get_viable_seqnames()[idx]
+
+        frame_ids = self.get_frame_ids(seqname)
+        viable_starting_frame_ids = [idx for idx in self.get_nonempty_frame_ids(seqname) 
+                                     if idx <= frame_ids[-self._seqlen]]
+
+        frame_ids = self._select_frame_ids(frame_ids, viable_starting_frame_ids)
+        seed = np.random.randint(2**32-1)
+        images = torch.stack([self._image_read(self._full_image_path(seqname, idx), seed)
+                              for idx in frame_ids])
+        segannos = torch.stack([self._anno_read(self._full_anno_path(seqname, idx), seed)
+                                for idx in frame_ids])
+
+        if self._version == '2017':
+            segannos = self._select_object_ids(segannos)
+        elif self._version == '2016':
+            segannos = (segannos > 0).long()
+        else:
+            raise ValueError("Version is not 2016 or 2017, got {}".format(self._version))
+
+        segannos[segannos == 255] = 0
+        given_seganno = segannos[0]
+        provides_seganno = torch.empty((self._seqlen), dtype=torch.uint8).fill_(True)
+
+        return {'images': images, 'provides_seganno': provides_seganno, 'given_seganno':given_seganno,
+                'segannos': segannos}
