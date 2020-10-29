@@ -8,6 +8,9 @@ env_path = os.path.join(os.path.dirname(__file__), '..')
 if env_path not in sys.path:
     sys.path.append(env_path)
 
+IMAGENET_MEAN = [.485, .456, .406]
+IMAGENET_STD = [.229, .224, .225]
+
 class LabelToLongTensor(object):
     def __call__(self, pic):
         if isinstance(pic, np.ndarray):
@@ -24,3 +27,8 @@ class LabelToLongTensor(object):
                 label = label.view(pic.size[1], pic.size[0], -1)
                 label = label.transpose(0, 1).transpose(0, 2).contiguous().long()
         return label
+
+def centercrop(tensor, cropsize):
+    _, _, H, W = tensor.size()
+    A, B = cropsize
+    return tensor[:, :, (H-A)//2:(H+A)//2, (W-B)//2:(W+B)//2]
