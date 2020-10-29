@@ -80,4 +80,20 @@ class DAVIS17V2(torch.utils.data.Dataset):
     def get_all_seqnames(self):
         return self._all_seqs
 
-    
+    def get_anno_frame_names(self, seqname):
+        return os.listdir(os.path.join(self._root_path, "Annotations", "480p", seqname))
+
+    def get_anno_frame_ids(self, seqname):
+        return sorted([self._frame_name_to_idx(fname) for fname in self.get_anno_frame_names(seqname)])
+
+    def get_image_frame_names(self, seqname):
+        return os.listdir(os.path.join(self._root_path, "JPEGImages", "480p", seqname))
+
+    def get_image_frame_ids(self, seqname):
+        return sorted([self._frame_name_to_idx(fname) for fname in self.get_image_frame_names(seqname)])
+
+    def get_frame_ids(self, seqname):
+        return sorted([self._frame_name_to_idx(fname) for fname in self.get_image_frame_names(seqname)])
+
+    def get_nonempty_frame_ids(self, seqname):
+        return self._nonempty_frame_ids[seqname]
