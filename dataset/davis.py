@@ -107,3 +107,11 @@ class DAVIS17V2(torch.utils.data.Dataset):
         if isinstance(anno, int):
             anno = self._frame_idx_to_anno_fname(anno)
         return os.path.join(self._root_path, 'Annotations', "480p", seqname, anno)
+
+    def _select_frame_ids(self, frame_ids, viable_starting_frame_ids):
+        if self._start_frame == 'first':
+            frame_idxidx = frame_ids.index(viable_starting_frame_ids[0])
+            return frame_ids[frame_idxidx: frame_idxidx + self._seqlen]
+        if self._start_frame == 'random':
+            frame_idxidx = frame_ids.index(random.choice(viable_starting_frame_ids))
+            return frame_ids[frame_idxidx: frame_idxidx + self._seqlen]
