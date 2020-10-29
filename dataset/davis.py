@@ -61,3 +61,23 @@ class DAVIS17V2(torch.utils.data.Dataset):
                              and len(self.get_image_frame_ids(seq)[min(self._nonempty_frame_ids[seq]):
                                                                    max(self._visible_objects[seq].keys()) + 1])
                              >= self._seqlen]
+
+    def __len__(self):
+        return len(self._viable_seqs)
+
+    def _frame_idx_to_image_fname(self, idx):
+        return "{:05d}.jpg".format(idx)
+
+    def _frame_idx_to_anno_fname(self, idx):
+        return "{:05d}.png".format(idx)
+
+    def _frame_name_to_idx(self, fname):
+        return int(os.path.splitext(fname)[0])
+
+    def get_viable_seqnames(self):
+        return self._viable_seqs
+
+    def get_all_seqnames(self):
+        return self._all_seqs
+
+    
