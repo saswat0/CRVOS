@@ -97,3 +97,13 @@ class DAVIS17V2(torch.utils.data.Dataset):
 
     def get_nonempty_frame_ids(self, seqname):
         return self._nonempty_frame_ids[seqname]
+
+    def _full_image_path(self, seqname, image):
+        if isinstance(image, int):
+            image = self._frame_idx_to_image_fname(image)
+        return os.path.join(self._root_path, 'JPEGImages', "480p", seqname, image)
+
+    def _full_anno_path(self, seqname, anno):
+        if isinstance(anno, int):
+            anno = self._frame_idx_to_anno_fname(anno)
+        return os.path.join(self._root_path, 'Annotations', "480p", seqname, anno)
