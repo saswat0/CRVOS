@@ -190,3 +190,15 @@ class DAVIS17V2(torch.utils.data.Dataset):
                                  for start_idx in range(0, len(seq_frame_ids), self._seqlen)]
         for frame_ids in partitioned_frame_ids:
             yield self._get_snippet(seqname, frame_ids)
+
+    def get_video_generator(self):
+        for seqname in self.get_all_seqnames():
+            yield (seqname, self._get_video(seqname))
+
+def get_sample_bernoulli(p):
+    return lambda lst: [elem for elem in lst if random.random() < p]
+
+
+def get_sample_all():
+    return lambda lst: lst
+
