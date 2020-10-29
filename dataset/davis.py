@@ -165,3 +165,28 @@ class DAVIS17V2(torch.utils.data.Dataset):
 
         return {'images': images, 'provides_seganno': provides_seganno, 'given_seganno':given_seganno,
                 'segannos': segannos}
+
+    def _get_snippet(self, seqname, frame_ids):
+        images = torch.stack([self._image_read(self._full_image_path(seqname, idx))
+                              for idx in frame_ids]).unsqueeze(0)
+        segannos = torch.stack([self._anno_read(self._full_anno_path(seqname, idx))
+                              for idx in frame_ids]).squeeze().unsqueeze(0)
+        if self._version == '2016':
+            segannos = (segannos != 0).long()
+        given_segannos = [self._anno_read(self._full_anno_path(seqname, idx)).unsqueeze(0)
+                        if idx == self.get_anno_frame_ids(seqname)[0] else None for idx in frame_ids]
+        for i in range(len(given_segannos)):
+            if given_segannos[i] is not None:
+                given_segannos[i][given_segannos[i] == 255] = 0
+                if self._version == '2016':
+                    given_segannos[i] = (given_segannos[i] != 0).long()
+
+        fnames = [self._frame_idx_to_anno_fname(idx) for idx in frame_ids]
+        return {'images': images, 'given_segannos': given_segannos, 'segannos': segannos, 'fnames': fnames}
+        
+    def _get_video(self, seqname):
+        seq_frame_ids = self.get_frame_ids(seqname)
+        partitioned_frame_ids = [seq_frame_ids[start_idx : start_idx + self._seqlen]
+                                 for start_idx in range(0, len(seq_frame_ids), self._seqlen)]
+        for frame_ids in partitioned_frame_ids:
+            yield self._get_snippet(seqname, frame_ids)
