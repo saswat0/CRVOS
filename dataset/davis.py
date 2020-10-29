@@ -198,7 +198,18 @@ class DAVIS17V2(torch.utils.data.Dataset):
 def get_sample_bernoulli(p):
     return lambda lst: [elem for elem in lst if random.random() < p]
 
-
 def get_sample_all():
     return lambda lst: lst
 
+def get_sample_k_random(k):
+    return lambda lst: sorted(random.sample(lst, min(k,len(lst))))
+
+def get_anno_ids(anno_path, pic_to_tensor_function, threshold):
+    pic = Image.open(anno_path)
+    tensor = pic_to_tensor_function(pic)
+    values = (tensor.view(-1).bincount() > threshold).nonzero().view(-1).tolist()
+    if 0 in values:
+        values.remove(0)
+    if 255 in values:
+        values.remove(255)
+    return values
